@@ -54,6 +54,13 @@ export interface SessionSummary {
 	createdAt: number;
 }
 
+export interface UploadedDocument {
+	title?: string;
+	filename: string;
+	previewText: string;
+	text: string;
+}
+
 export interface AnalysisStreamEvent {
 	type: 'status' | 'run' | 'done' | 'error';
 	message?: string;

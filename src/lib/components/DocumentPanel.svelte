@@ -182,14 +182,17 @@
 			</div>
 		{:else}
 			<Card
-				class="flex items-center justify-between p-3 bg-emerald-500/5 border-2 border-emerald-500/30 shadow-none"
+				class="flex items-center gap-3 p-3 bg-emerald-500/5 border-2 border-emerald-500/30 shadow-none"
 			>
-				<div class="flex items-center gap-3 min-w-0">
+				<div class="flex flex-1 min-w-0 items-center gap-3">
 					<div class="p-2 bg-emerald-500/10 border-2 border-emerald-500/20">
 						<FileText class="w-4 h-4 text-emerald-500" />
 					</div>
-					<div class="min-w-0">
-						<h2 class="font-bold text-xs text-foreground uppercase tracking-widest truncate">
+					<div class="min-w-0 flex-1 overflow-hidden">
+						<h2
+							title={displayTitle}
+							class="block max-w-full font-bold text-xs text-foreground tracking-wide leading-tight whitespace-normal break-words [overflow-wrap:anywhere]"
+						>
 							{displayTitle}
 						</h2>
 						<span class="text-[10px] text-muted-foreground font-bold">Parsed and indexed</span>
@@ -200,7 +203,7 @@
 					size="sm"
 					onclick={onRemoveDocument}
 					disabled={isAnalyzing}
-					class="text-xs font-bold uppercase">Remove</Button
+					class="shrink-0 text-xs font-bold uppercase">Remove</Button
 				>
 			</Card>
 		{/if}
@@ -220,29 +223,27 @@
 		</div>
 	</div>
 
-	<ScrollArea class="flex-1 min-h-0 max-h-[28dvh] sm:max-h-[32dvh] lg:max-h-none p-3 sm:p-4">
-		<div class="space-y-3 text-muted-foreground leading-relaxed text-sm">
+	<ScrollArea class="flex-1 min-h-0 p-3 sm:p-4">
+		<div class="h-full min-h-0 flex flex-col gap-3 text-muted-foreground leading-relaxed text-sm">
 			{#if statusText}<div
 					class="p-2 border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest"
 				>
 					{statusText}
 				</div>{/if}
 			{#if session}
-				<div
-					class="p-3 border-l-4 border-primary bg-muted/50 max-h-[22vh] sm:max-h-[26vh] overflow-y-auto"
-				>
+				<div class="flex-1 min-h-0 p-3 border-l-4 border-primary bg-muted/50">
 					<p
-						class="text-foreground font-medium bg-primary/10 p-2 border border-primary/20 whitespace-pre-wrap break-words text-xs"
+						class="h-full overflow-y-auto text-foreground font-medium bg-primary/10 p-2 border border-primary/20 whitespace-pre-wrap break-words text-xs"
 					>
 						{visiblePreview}
 					</p>
 				</div>
-				<p class="opacity-50 italic text-center py-2 font-bold text-xs">
+				<p class="mt-auto pt-1 opacity-50 italic text-center font-bold text-xs">
 					Preview uses start+end snippet for readability.
 				</p>
 			{:else}
 				<div
-					class="h-24 flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-widest"
+					class="flex-1 min-h-0 flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-widest"
 				>
 					Awaiting Document...
 				</div>

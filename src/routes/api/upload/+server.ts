@@ -1,6 +1,30 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { extractDocumentText } from '$lib/server/document';
-import { convexClient, convexFunctions } from '$lib/server/convex';
+
+export const config = {
+	maxDuration: 60
+};
+
+function makeTitle(filename: string, text: string) {
+	const cleanName = filename
+		.replace(/\.[^.]+$/, '')
+		.replace(/[_-]+/g, ' ')
+		.trim();
+	const firstSentence = text
+		.split(/(?<=[.!?])\s+/)
+		.map((line) => line.trim())
+		.find((line) => line.length > 20);
+
+	if (!firstSentence) {
+		return cleanName || 'Untitled Session';
+	}
+
+	const concise = firstSentence.slice(0, 72).trim();
+	if (cleanName) {
+		return `${cleanName} - ${concise}`;
+	}
+	return concise;
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -20,22 +44,19 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'Could not extract text from this file.' }, { status: 400 });
 		}
 
-		const client = convexClient();
-		const result = await client.mutation(convexFunctions.createSession, {
-			filename: file.name,
-			text
-		});
+		const title = makeTitle(file.name, text);
+		const previewText = text.slice(0, 4000);
 
 		return json({
-			session: {
-				_id: String(result.sessionId),
-				title: result.title,
-				filename: result.filename,
-				previewText: result.previewText,
-				createdAt: result.createdAt
+			document: {
+				title,
+				filename: file.name,
+				previewText,
+				text
 			}
 		});
 	} catch (error) {
+		console.error('[upload] failed', error);
 		const message = error instanceof Error ? error.message : 'Upload failed.';
 		return json({ error: message }, { status: 500 });
 	}

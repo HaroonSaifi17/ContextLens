@@ -11,7 +11,7 @@
 	<div class="flex items-center gap-2 sm:gap-3 min-w-0">
 		<Cpu class="w-6 h-6 sm:w-8 sm:h-8 text-primary shrink-0" />
 		<h1 class="text-lg sm:text-2xl font-black uppercase tracking-tighter text-foreground truncate">
-			Hallucinate<span class="text-primary">.</span>
+			ContextLens<span class="text-primary">.</span>
 		</h1>
 	</div>
 	<div

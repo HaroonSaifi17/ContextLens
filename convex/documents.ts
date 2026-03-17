@@ -1,8 +1,9 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 
-const CHUNK_SIZE = 1200;
+const BASE_CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
+const MAX_CHUNKS_PER_DOCUMENT = 380;
 
 function normalizeWhitespace(text: string) {
 	return text.replace(/\s+/g, ' ').trim();
@@ -36,19 +37,22 @@ function makeTitle(filename: string, text: string) {
 function chunkText(text: string) {
 	const normalized = normalizeWhitespace(text);
 	const chunks: Array<{ order: number; text: string; tokens: string[] }> = [];
+	if (!normalized) {
+		return chunks;
+	}
+
+	const baseStep = BASE_CHUNK_SIZE - CHUNK_OVERLAP;
+	const adaptiveStep = Math.max(baseStep, Math.ceil(normalized.length / MAX_CHUNKS_PER_DOCUMENT));
+	const adaptiveChunkSize = adaptiveStep + CHUNK_OVERLAP;
 	let order = 0;
 
-	for (let index = 0; index < normalized.length; index += CHUNK_SIZE - CHUNK_OVERLAP) {
-		const part = normalized.slice(index, index + CHUNK_SIZE).trim();
+	for (let index = 0; index < normalized.length; index += adaptiveStep) {
+		const part = normalized.slice(index, index + adaptiveChunkSize).trim();
 		if (!part) {
 			continue;
 		}
 		chunks.push({ order, text: part, tokens: tokenize(part) });
 		order += 1;
-	}
-
-	if (chunks.length === 0 && normalized) {
-		chunks.push({ order: 0, text: normalized, tokens: tokenize(normalized) });
 	}
 
 	return chunks;

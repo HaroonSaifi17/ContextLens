@@ -7,7 +7,12 @@
 	import { ListTree, LayoutGrid, Clock } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import type { AnalysisStreamEvent, PipelineRun, SessionSummary } from '$lib/types';
+	import type {
+		AnalysisStreamEvent,
+		PipelineRun,
+		SessionSummary,
+		UploadedDocument
+	} from '$lib/types';
 
 	let query = $state('');
 	let activeTab = $state<'outputs' | 'analytics' | 'history'>('outputs');
@@ -19,6 +24,7 @@
 	let statusText = $state('Upload or paste a document to begin.');
 	let runs = $state<PipelineRun[]>([]);
 	let allRuns = $state<PipelineRun[]>([]);
+	let pendingDocument = $state<UploadedDocument | null>(null);
 
 	const historyItems = $derived(
 		sessions.map((item) => ({
@@ -61,25 +67,24 @@
 
 	async function handleUpload(file: File) {
 		isUploading = true;
-		statusText = 'Reading, chunking, and indexing document...';
+		statusText = 'Reading and preparing document...';
 		try {
 			const formData = new FormData();
 			formData.append('file', file);
 			const response = await fetch('/api/upload', { method: 'POST', body: formData });
-			const payload = (await response.json()) as { session?: SessionSummary; error?: string };
-			if (!response.ok || !payload.session) throw new Error(payload.error ?? 'Upload failed.');
-			session = payload.session;
-			if (browser) {
-				void goto(`/#${payload.session._id}`, {
-					replaceState: true,
-					noScroll: true,
-					keepFocus: true
-				});
-			}
+			const payload = (await response.json()) as { document?: UploadedDocument; error?: string };
+			if (!response.ok || !payload.document) throw new Error(payload.error ?? 'Upload failed.');
+			pendingDocument = payload.document;
+			session = {
+				_id: 'pending',
+				title: payload.document.title,
+				filename: payload.document.filename,
+				previewText: payload.document.previewText,
+				createdAt: Date.now()
+			};
 			query = '';
 			runs = [];
-			statusText = 'Document ready. Ask a question to run triple engine across Groq models.';
-			await Promise.all([refreshSessions(), refreshAllRuns()]);
+			statusText = 'Document ready. Session will be saved when you run your first query.';
 		} catch (error) {
 			statusText = error instanceof Error ? error.message : 'Upload failed.';
 		} finally {
@@ -103,6 +108,36 @@
 		runs = runs.filter((run) => run.query !== query.trim());
 		statusText = 'Starting triple answer engine...';
 		try {
+			if (pendingDocument) {
+				statusText = 'Saving session and indexing chunks...';
+				const createSessionResponse = await fetch('/api/sessions', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						filename: pendingDocument.filename,
+						text: pendingDocument.text
+					})
+				});
+
+				const createSessionPayload = (await createSessionResponse.json()) as {
+					session?: SessionSummary;
+					error?: string;
+				};
+				if (!createSessionResponse.ok || !createSessionPayload.session) {
+					throw new Error(createSessionPayload.error ?? 'Failed to save session.');
+				}
+
+				session = createSessionPayload.session;
+				pendingDocument = null;
+				if (browser) {
+					void goto(`/#${createSessionPayload.session._id}`, {
+						replaceState: true,
+						noScroll: true,
+						keepFocus: true
+					});
+				}
+			}
+
 			const response = await fetch('/api/analyze', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -148,6 +183,7 @@
 
 	function handleNewSession() {
 		session = null;
+		pendingDocument = null;
 		query = '';
 		runs = [];
 		statusText = 'Upload or paste a document to begin.';
@@ -168,6 +204,7 @@
 	}
 
 	async function restoreSession(item: { id: string; filename: string }) {
+		pendingDocument = null;
 		const [sessionResponse] = await Promise.all([
 			fetch(`/api/sessions/${item.id}`),
 			loadSessionRuns(item.id)
@@ -202,6 +239,7 @@
 		}
 
 		const payload = (await sessionResponse.json()) as { session: SessionSummary };
+		pendingDocument = null;
 		session = payload.session;
 		query = '';
 		statusText = `Restored session: ${payload.session.title || payload.session.filename}`;

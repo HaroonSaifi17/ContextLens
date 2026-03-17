@@ -1,6 +1,8 @@
-# ContextLimit2
+# ContextLens
 
 Long-document intelligence platform for **live hallucination detection**, **triple-pipeline comparison**, and **reliability analytics**.
+
+Live app: https://context-limit.vercel.app/
 
 Upload a document (or paste text), ask a question, and compare answers in real time across:
 
