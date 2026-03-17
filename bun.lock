@@ -5,6 +5,7 @@
     "": {
       "name": "contextlimit2",
       "dependencies": {
+        "@napi-rs/canvas": "^0.1.97",
         "convex": "^1.33.1",
         "lucide-svelte": "^0.577.0",
         "pdf-lib": "^1.17.1",

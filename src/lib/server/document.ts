@@ -1,10 +1,17 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { DOMMatrix } from '@napi-rs/canvas';
+
+if (!globalThis.DOMMatrix) {
+	globalThis.DOMMatrix = DOMMatrix as typeof globalThis.DOMMatrix;
+}
+
+const pdfjsLibPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
 
 function normalizeWhitespace(text: string) {
 	return text.replace(/\s+/g, ' ').trim();
 }
 
 async function extractPdfText(data: Uint8Array) {
+	const pdfjsLib = await pdfjsLibPromise;
 	const loadingTask = pdfjsLib.getDocument({
 		data,
 		isEvalSupported: false,
