@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BarChart3, TrendingUp, ShieldAlert, Flame, Download } from 'lucide-svelte';
+	import { BarChart3, TrendingUp, ShieldAlert, Flame, Download, FileText } from 'lucide-svelte';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
@@ -119,6 +119,20 @@
 		link.click();
 		URL.revokeObjectURL(url);
 	}
+
+	async function exportPdfReport() {
+		const response = await fetch('/api/report/pdf');
+		if (!response.ok) {
+			return;
+		}
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = `reliability-report-${Date.now()}.pdf`;
+		link.click();
+		URL.revokeObjectURL(url);
+	}
 </script>
 
 <div
@@ -135,13 +149,22 @@
 				All sessions + all runs analytics
 			</p>
 		</div>
-		<Button
-			variant="outline"
-			onclick={exportReport}
-			class="uppercase font-bold text-xs tracking-widest w-full sm:w-auto"
-		>
-			<Download class="w-4 h-4" /> Export Report
-		</Button>
+		<div class="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
+			<Button
+				variant="outline"
+				onclick={exportPdfReport}
+				class="uppercase font-bold text-xs tracking-widest w-full sm:w-auto"
+			>
+				<FileText class="w-4 h-4" /> Export PDF
+			</Button>
+			<Button
+				variant="outline"
+				onclick={exportReport}
+				class="uppercase font-bold text-xs tracking-widest w-full sm:w-auto"
+			>
+				<Download class="w-4 h-4" /> Export JSON
+			</Button>
+		</div>
 	</div>
 
 	<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">

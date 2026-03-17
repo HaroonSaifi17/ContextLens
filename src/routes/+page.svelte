@@ -5,6 +5,8 @@
 	import AnalyticsPanel from '$lib/components/AnalyticsPanel.svelte';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { ListTree, LayoutGrid, Clock } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import type { AnalysisStreamEvent, PipelineRun, SessionSummary } from '$lib/types';
 
 	let query = $state('');
@@ -21,6 +23,7 @@
 	const historyItems = $derived(
 		sessions.map((item) => ({
 			id: item._id,
+			title: item.title || item.filename,
 			filename: item.filename,
 			createdAt: new Date(item.createdAt).toLocaleString()
 		}))
@@ -66,6 +69,14 @@
 			const payload = (await response.json()) as { session?: SessionSummary; error?: string };
 			if (!response.ok || !payload.session) throw new Error(payload.error ?? 'Upload failed.');
 			session = payload.session;
+			if (browser) {
+				void goto(`/#${payload.session._id}`, {
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				});
+			}
+			query = '';
 			runs = [];
 			statusText = 'Document ready. Ask a question to run triple engine across Groq models.';
 			await Promise.all([refreshSessions(), refreshAllRuns()]);
@@ -89,7 +100,7 @@
 	async function runAnalysis() {
 		if (!session || !query.trim()) return;
 		isAnalyzing = true;
-		runs = [];
+		runs = runs.filter((run) => run.query !== query.trim());
 		statusText = 'Starting triple answer engine...';
 		try {
 			const response = await fetch('/api/analyze', {
@@ -140,6 +151,9 @@
 		query = '';
 		runs = [];
 		statusText = 'Upload or paste a document to begin.';
+		if (browser) {
+			void goto('/', { replaceState: true, noScroll: true, keepFocus: true });
+		}
 	}
 
 	function removeDocument() {
@@ -161,14 +175,53 @@
 		if (sessionResponse.ok) {
 			const payload = (await sessionResponse.json()) as { session: SessionSummary };
 			session = payload.session;
-			statusText = `Restored session: ${item.filename}`;
+			query = '';
+			if (browser) {
+				void goto(`/#${item.id}`, { replaceState: true, noScroll: true, keepFocus: true });
+			}
+			statusText = `Restored session: ${payload.session.title || item.filename}`;
 			activeTab = 'outputs';
 		}
+	}
+
+	async function restoreSessionByHash(hashValue: string) {
+		const id = hashValue.replace('#', '').trim();
+		if (!id) {
+			return;
+		}
+		if (session?._id === id) {
+			return;
+		}
+
+		const [sessionResponse] = await Promise.all([
+			fetch(`/api/sessions/${id}`),
+			loadSessionRuns(id)
+		]);
+		if (!sessionResponse.ok) {
+			return;
+		}
+
+		const payload = (await sessionResponse.json()) as { session: SessionSummary };
+		session = payload.session;
+		query = '';
+		statusText = `Restored session: ${payload.session.title || payload.session.filename}`;
+		activeTab = 'outputs';
 	}
 
 	$effect(() => {
 		refreshSessions();
 		refreshAllRuns();
+	});
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const hash = window.location.hash;
+		if (!hash) {
+			return;
+		}
+		restoreSessionByHash(hash);
 	});
 </script>
 
@@ -286,7 +339,7 @@
 												{item.createdAt}
 											</div>
 											<div class="font-bold text-foreground mt-1 text-sm sm:text-base">
-												{item.filename}
+												{item.title}
 											</div>
 											<div class="text-[10px] uppercase tracking-widest mt-2 text-primary">
 												Click to restore session

@@ -12,6 +12,27 @@ function tokenize(text: string) {
 	return Array.from(new Set(text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []));
 }
 
+function makeTitle(filename: string, text: string) {
+	const cleanName = filename
+		.replace(/\.[^.]+$/, '')
+		.replace(/[_-]+/g, ' ')
+		.trim();
+	const firstSentence = text
+		.split(/(?<=[.!?])\s+/)
+		.map((line) => line.trim())
+		.find((line) => line.length > 20);
+
+	if (!firstSentence) {
+		return cleanName || 'Untitled Session';
+	}
+
+	const concise = firstSentence.slice(0, 72).trim();
+	if (cleanName) {
+		return `${cleanName} - ${concise}`;
+	}
+	return concise;
+}
+
 function chunkText(text: string) {
 	const normalized = normalizeWhitespace(text);
 	const chunks: Array<{ order: number; text: string; tokens: string[] }> = [];
@@ -46,7 +67,9 @@ export const createSession = mutation({
 
 		const previewText = fullText.slice(0, 4000);
 		const createdAt = Date.now();
+		const title = makeTitle(args.filename, fullText);
 		const sessionId = await ctx.db.insert('sessions', {
+			title,
 			filename: args.filename,
 			previewText,
 			fullText,
@@ -64,6 +87,7 @@ export const createSession = mutation({
 
 		return {
 			sessionId,
+			title,
 			filename: args.filename,
 			previewText,
 			createdAt

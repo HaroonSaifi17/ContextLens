@@ -27,7 +27,7 @@ Each run is stored in Convex and shown with sentence-level grounding, context us
 - Positional bias heatmap (lost-in-the-middle signal)
 - Noise injection lab (controlled robustness test)
 - Session history with one-click restore
-- Exportable JSON reliability report
+- Exportable reliability reports (PDF + JSON)
 
 ## Environment variables
 
@@ -69,6 +69,7 @@ bun run build
 - `src/routes/api/upload/+server.ts` ingestion + parsing + session creation
 - `src/routes/api/runs/+server.ts` all-runs analytics feed
 - `src/routes/api/report/+server.ts` report export endpoint
+- `src/routes/api/report/pdf/+server.ts` formatted PDF report export endpoint
 - `src/lib/server/analysis.ts` retrieval, context shaping, run logic
 - `src/lib/server/groq.ts` Groq model discovery and JSON chat wrapper
 - `convex/` schema and Convex functions
@@ -84,3 +85,10 @@ bun run build
 - Context is automatically resized per model to reduce token-limit failures.
 - Model families are deduplicated to avoid showing multiple variants of the same base family.
 - For production, rotate API keys and avoid committing secrets.
+
+## Exporting reports
+
+From the Analytics tab you can export:
+
+- **PDF report**: polished one-page layout with key metrics, summary table, and recent runs
+- **JSON report**: raw structured data for further analysis

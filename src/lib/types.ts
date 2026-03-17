@@ -48,6 +48,7 @@ export interface PipelineRun {
 
 export interface SessionSummary {
 	_id: string;
+	title?: string;
 	filename: string;
 	previewText: string;
 	createdAt: number;

@@ -3,6 +3,7 @@ import { convexClient, convexFunctions } from '$lib/server/convex';
 
 interface SessionRecord {
 	_id: string;
+	title?: string;
 	filename: string;
 	previewText: string;
 	createdAt: number;
@@ -27,6 +28,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({
 			session: {
 				_id: String(session._id),
+				title: session.title,
 				filename: session.filename,
 				previewText: session.previewText,
 				createdAt: session.createdAt

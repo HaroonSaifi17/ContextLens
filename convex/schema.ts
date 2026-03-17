@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 
 export default defineSchema({
 	sessions: defineTable({
+		title: v.optional(v.string()),
 		filename: v.string(),
 		previewText: v.string(),
 		fullText: v.string(),

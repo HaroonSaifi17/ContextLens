@@ -54,6 +54,11 @@
 		{ id: 'moby', label: 'Moby Dick', filename: 'moby_dick.pdf', url: '/samples/moby_dick.pdf' }
 	] as const;
 
+	const displayTitle = $derived.by(() => {
+		if (!session) return '';
+		return session.title?.trim() || session.filename;
+	});
+
 	const visiblePreview = $derived.by(() => {
 		if (!session?.previewText) return '';
 		const text = session.previewText.trim();
@@ -185,7 +190,7 @@
 					</div>
 					<div class="min-w-0">
 						<h2 class="font-bold text-xs text-foreground uppercase tracking-widest truncate">
-							{session.filename}
+							{displayTitle}
 						</h2>
 						<span class="text-[10px] text-muted-foreground font-bold">Parsed and indexed</span>
 					</div>

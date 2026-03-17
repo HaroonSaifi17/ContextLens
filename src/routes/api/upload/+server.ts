@@ -29,6 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({
 			session: {
 				_id: String(result.sessionId),
+				title: result.title,
 				filename: result.filename,
 				previewText: result.previewText,
 				createdAt: result.createdAt
