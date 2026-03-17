@@ -1,7 +1,16 @@
 import { DOMMatrix } from '@napi-rs/canvas';
+import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 
 if (!globalThis.DOMMatrix) {
 	globalThis.DOMMatrix = DOMMatrix as typeof globalThis.DOMMatrix;
+}
+
+const globalWithPdfWorker = globalThis as typeof globalThis & {
+	pdfjsWorker?: { WorkerMessageHandler?: unknown };
+};
+
+if (!globalWithPdfWorker.pdfjsWorker?.WorkerMessageHandler) {
+	globalWithPdfWorker.pdfjsWorker = pdfjsWorker;
 }
 
 const pdfjsLibPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
