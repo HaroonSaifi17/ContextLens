@@ -15,6 +15,43 @@ interface ChunkRecord {
 	tokens: string[];
 }
 
+interface SessionRecord {
+	filename: string;
+	fullText?: string;
+}
+
+function findOverlap(previous: string, next: string) {
+	const maxOverlap = Math.min(previous.length, next.length, 300);
+	for (let size = maxOverlap; size >= 40; size -= 1) {
+		if (previous.endsWith(next.slice(0, size))) {
+			return size;
+		}
+	}
+	return 0;
+}
+
+function buildFullContextText(session: SessionRecord, chunks: ChunkRecord[]) {
+	if (typeof session.fullText === 'string' && session.fullText.trim().length > 0) {
+		return session.fullText;
+	}
+
+	let rebuilt = '';
+	for (const chunk of chunks.slice().sort((a, b) => a.order - b.order)) {
+		if (!chunk.text) {
+			continue;
+		}
+		if (!rebuilt) {
+			rebuilt = chunk.text;
+			continue;
+		}
+
+		const overlap = findOverlap(rebuilt, chunk.text);
+		rebuilt += chunk.text.slice(overlap);
+	}
+
+	return rebuilt.trim();
+}
+
 function sse(data: unknown) {
 	return `data: ${JSON.stringify(data)}\n\n`;
 }
@@ -35,9 +72,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const client = convexClient();
-		const session = await client.query(convexFunctions.getSession, {
+		const session = (await client.query(convexFunctions.getSession, {
 			sessionId: sessionId as never
-		});
+		})) as SessionRecord | null;
 		if (!session) {
 			return json({ error: 'Session not found.' }, { status: 404 });
 		}
@@ -45,12 +82,22 @@ export const POST: RequestHandler = async ({ request }) => {
 		const allChunks = (await client.query(convexFunctions.getChunks, {
 			sessionId: sessionId as never
 		})) as ChunkRecord[];
+		const orderedChunks = allChunks.slice().sort((a, b) => a.order - b.order);
+		const fullContextText = buildFullContextText(session, orderedChunks);
+
+		if (!fullContextText) {
+			return json({ error: 'Session has no extractable text.' }, { status: 400 });
+		}
+
 		const models = await listExperimentModels();
 
 		const tasks = models.flatMap((model) => {
 			const noContext = injectNoise(makeNoContext(query), false);
-			const fullContext = injectNoise(makeFullContext(session.fullText, allChunks), noiseInjection);
-			const ragContext = injectNoise(makeRagContext(query, allChunks), noiseInjection);
+			const fullContext = injectNoise(
+				makeFullContext(fullContextText, orderedChunks),
+				noiseInjection
+			);
+			const ragContext = injectNoise(makeRagContext(query, orderedChunks), noiseInjection);
 
 			return [
 				{ model, pipeline: 'no_context' as const, context: noContext },

@@ -6,7 +6,8 @@ export default defineSchema({
 		title: v.optional(v.string()),
 		filename: v.string(),
 		previewText: v.string(),
-		fullText: v.string(),
+		fullText: v.optional(v.string()),
+		fullTextCharCount: v.optional(v.number()),
 		createdAt: v.number()
 	}),
 	chunks: defineTable({

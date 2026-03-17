@@ -72,7 +72,7 @@ export const createSession = mutation({
 			title,
 			filename: args.filename,
 			previewText,
-			fullText,
+			fullTextCharCount: fullText.length,
 			createdAt
 		});
 
