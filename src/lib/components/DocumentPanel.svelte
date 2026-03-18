@@ -51,7 +51,12 @@
 			filename: 'great_gatsby.pdf',
 			url: '/samples/great_gatsby.pdf'
 		},
-		{ id: 'moby', label: 'Moby Dick', filename: 'moby_dick.pdf', url: '/samples/moby_dick.pdf' }
+		{
+			id: 'anne-frank',
+			label: 'Anne Frank',
+			filename: 'anne_frank.pdf',
+			url: '/samples/anne_frank.pdf'
+		}
 	] as const;
 
 	const displayTitle = $derived.by(() => {
