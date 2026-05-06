@@ -330,8 +330,8 @@ function fallbackResearchQueries(fullText: string) {
 		.flatMap(([position, excerpt]) => {
 			const sentence = excerpt.split(/(?<=[.!?])\s+/).find((item) => item.length > 80) ?? excerpt;
 			return [
-				`What specific claim or event is described in the ${position} section around: "${sentence.slice(0, 140)}"?`,
-				`Which evidence from the ${position} section best supports its central point?`
+				`How does the text reconcile the events around "${sentence.slice(0, 70)}" with the contradictory consequences mentioned later?`,
+				`What unstated assumptions in the ${position} section undermine the main argument?`
 			];
 		})
 		.slice(0, 6);
@@ -351,11 +351,11 @@ export async function generateResearchQueries(fullText: string, count = 8) {
 				{
 					role: 'system',
 					content:
-						'Return JSON only: { "queries": [{ "query": string, "targetPosition": "beginning"|"middle"|"end"|"global" }] }. Generate high-quality benchmark questions that require document-specific evidence and cover beginning, middle, and end positions.'
+						'Return JSON only: { "queries": [{ "query": string, "targetPosition": "beginning"|"middle"|"end"|"global" }] }. Generate extreme, complex, and tricky queries designed to test hallucination boundaries. Include multi-hop reasoning, false premises, requests for contradictory information, and misleading questions that confuse models. They must push the AI to hallucinate if it doesn\'t pay strict attention.'
 				},
 				{
 					role: 'user',
-					content: `Generate ${boundedCount} research benchmark queries for this document sample:\n\n${promptContext}`
+					content: `Generate ${boundedCount} highly tricky and complex benchmark queries that aggressively test for hallucination based on this document sample:\n\n${promptContext}`
 				}
 			],
 			0.3,
