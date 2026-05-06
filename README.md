@@ -1,100 +1,88 @@
-# ContextLens
+# ContextLens 🔍
 
-Long-document intelligence platform for **live hallucination detection**, **triple-pipeline comparison**, and **reliability analytics**.
+[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg?style=for-the-badge)](https://github.com/yourusername/contextlens)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-Live app: https://context-limit.vercel.app/
+> Long-document intelligence platform for **live hallucination detection**, **triple-pipeline comparison**, and **reliability analytics**.
 
-Upload a document (or paste text), ask a question, and compare answers in real time across:
+**Live Demo:** [context-limit.vercel.app](https://context-limit.vercel.app/)
 
-- No context (question-only)
-- Full context (entire document)
-- RAG context (retrieved chunks)
+ContextLens allows you to upload a document (or paste text), ask a question, and compare LLM answers in real-time across three distinct environments:
+- **No context** (question-only)
+- **Full context** (entire document)
+- **RAG context** (retrieved chunks)
 
-Each run is stored in Convex and shown with sentence-level grounding, context usage tags, and aggregate research metrics.
+Each query run is stored and analyzed, providing sentence-level grounding, context usage tags, and aggregate research metrics to deeply understand AI reliability.
 
-## Tech stack
+---
 
-- Frontend: SvelteKit + shadcn-svelte + Tailwind
-- Runtime: Bun
-- Backend/data: Convex
-- LLM provider: Groq
+## 🛠 Tech Stack
 
-## Features
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-FF3E00?style=for-the-badge&logo=Svelte&logoColor=white)](https://kit.svelte.dev/)
+[![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)](https://bun.sh/)
+[![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Convex](https://img.shields.io/badge/Convex-EA4A26?style=for-the-badge&logo=convex&logoColor=white)](https://convex.dev/)
+[![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logo=groq&logoColor=white)](https://groq.com/)
 
-- Document upload with progress states (PDF/TXT/MD)
-- Paste-text input for quick testing
-- Triple answer engine streamed via SSE
-- Sentence-level hallucination highlighting
-- Reliability dashboard across all sessions/runs
-- Positional bias heatmap (lost-in-the-middle signal)
-- Noise injection lab (controlled robustness test)
-- Session history with one-click restore
-- Exportable reliability reports (PDF, JSON, LaTeX)
-- Automatic batch research query generation and benchmarking
-- Trust-efficiency metrics and middle-position recovery analytics
-- OpenAI-compatible endpoint support
+---
 
-## Environment variables
+## ✨ Key Features
 
-Create `.env.local` with:
+- **Document Analysis:** Upload PDF/TXT/MD files or paste text for quick testing with progress states.
+- **Triple Answer Engine:** Compare answers in real-time (No Context vs. Full Context vs. RAG) streamed via SSE.
+- **Hallucination Detection:** Sentence-level hallucination highlighting and grounding.
+- **Reliability Dashboard:** Global metrics across all sessions and runs, including a positional bias heatmap (lost-in-the-middle signal).
+- **Advanced Tools:** Noise injection lab for controlled robustness testing, and automatic batch research query generation.
+- **Exportable Reports:** Export detailed reliability reports in PDF, JSON, or LaTeX formats.
 
-```env
-PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud
-PUBLIC_CONVEX_SITE_URL=https://<your-deployment>.convex.site
-GROQ_API_KEY=<your_groq_api_key>
-```
+---
 
-## Setup
+## 🚀 Getting Started
 
-```bash
-bun install
-bunx convex dev
-```
+### Prerequisites
+- [Bun](https://bun.sh/) installed on your machine.
+- A [Convex](https://convex.dev/) account and project.
+- A [Groq](https://console.groq.com/) API key.
 
-In another terminal:
+### Installation
 
-```bash
-bun run dev
-```
+1. Clone the repository and install dependencies:
+   ```bash
+   bun install
+   ```
 
-## Build and checks
+2. Set up your environment variables. Create a `.env.local` file in the root directory:
+   ```env
+   PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud
+   PUBLIC_CONVEX_SITE_URL=https://<your-deployment>.convex.site
+   GROQ_API_KEY=<your_groq_api_key>
+   ```
 
-```bash
-bun run check
-bun run build
-```
+3. Start the Convex development server:
+   ```bash
+   bunx convex dev
+   ```
 
-## Project structure
+4. In a separate terminal, run the application:
+   ```bash
+   bun run dev
+   ```
 
-- `src/routes/+page.svelte` main app shell and client orchestration
-- `src/lib/components/DocumentPanel.svelte` upload/paste/noise/query controls
-- `src/lib/components/ModelResult.svelte` per-run result rendering
-- `src/lib/components/AnalyticsPanel.svelte` global metrics and heatmap
-- `src/routes/api/analyze/+server.ts` SSE triple-engine execution
-- `src/routes/api/upload/+server.ts` ingestion + parsing + session creation
-- `src/routes/api/runs/+server.ts` all-runs analytics feed
-- `src/routes/api/report/+server.ts` report export endpoint
-- `src/routes/api/report/pdf/+server.ts` formatted PDF report export endpoint
-- `src/lib/server/analysis.ts` retrieval, context shaping, run logic
-- `src/lib/server/groq.ts` Groq model discovery and JSON chat wrapper
-- `convex/` schema and Convex functions
+---
 
-## Data model overview
+## 🏗 Project Structure
 
-- `sessions`: uploaded document metadata + preview + full text
-- `chunks`: tokenized document segments for retrieval
-- `runs`: per-question per-pipeline outputs, grounding, citations, metrics
+- `src/routes/` - Main app shell, client orchestration, and API endpoints (`api/analyze`, `api/upload`, `api/runs`, `api/report`).
+- `src/lib/components/` - Svelte components (Upload, Results, Analytics, etc.).
+- `src/lib/server/` - Server-side logic for retrieval, chunking, and Groq LLM integration.
+- `convex/` - Database schema and Convex backend functions.
 
-## Notes
+## 📝 Usage Notes
 
-- Context is automatically resized per model to reduce token-limit failures.
-- Built-in rate limit handling with automatic retries, exponential backoff, and a max-wait cap to safely navigate Groq free tier limits.
-- Model families are deduplicated to avoid showing multiple variants of the same base family.
-- For production, rotate API keys and avoid committing secrets.
+- **Token Limits:** Context is automatically resized per model to reduce token-limit failures.
+- **Rate Limiting:** Built-in rate limit handling with automatic retries and exponential backoff to safely navigate Groq free tier limits.
+- **Model Deduplication:** Model families are deduplicated to prevent showing redundant variants.
 
-## Exporting reports
+## 📄 License
 
-From the Analytics tab you can export:
-
-- **PDF report**: polished one-page layout with key metrics, summary table, and recent runs
-- **JSON report**: raw structured data for further analysis
+This project is licensed under the [MIT License](LICENSE).
