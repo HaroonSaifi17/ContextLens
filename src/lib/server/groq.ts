@@ -15,9 +15,50 @@ export interface GroqModelInfo {
 	id: string;
 	family: string;
 	contextWindow: number;
+	provider: 'Groq' | 'OpenAI-Compatible';
 }
 
-const TEXT_BLOCKLIST = ['whisper', 'tts', 'speech', 'transcribe', 'moderation', 'embedding'];
+const TEXT_BLOCKLIST = [
+	'whisper',
+	'tts',
+	'speech',
+	'transcribe',
+	'moderation',
+	'embedding',
+	'compound'
+];
+const GROQ_RESEARCH_MODELS: GroqModelInfo[] = [
+	{
+		id: 'llama-3.3-70b-versatile',
+		family: 'llama-3.3-70b',
+		contextWindow: 131072,
+		provider: 'Groq'
+	},
+	{
+		id: 'llama-3.1-8b-instant',
+		family: 'llama-3.1-8b',
+		contextWindow: 131072,
+		provider: 'Groq'
+	},
+	{
+		id: 'meta-llama/llama-4-scout-17b-16e-instruct',
+		family: 'llama-4-scout-17b',
+		contextWindow: 131072,
+		provider: 'Groq'
+	},
+	{
+		id: 'qwen/qwen3-32b',
+		family: 'qwen3-32b',
+		contextWindow: 131072,
+		provider: 'Groq'
+	},
+	{
+		id: 'openai/gpt-oss-120b',
+		family: 'gpt-oss-120b',
+		contextWindow: 131072,
+		provider: 'Groq'
+	}
+];
 
 function normalizeFamily(id: string) {
 	const normalized = id.toLowerCase();
@@ -37,7 +78,7 @@ function chooseRepresentative(models: Array<{ id: string; context_window?: numbe
 export async function listGroqModels(): Promise<GroqModelInfo[]> {
 	const apiKey = env.GROQ_API_KEY;
 	if (!apiKey) {
-		return [{ id: GROQ_MODEL, family: normalizeFamily(GROQ_MODEL), contextWindow: 0 }];
+		return GROQ_RESEARCH_MODELS;
 	}
 
 	const response = await fetch(GROQ_MODELS_URL, {
@@ -45,7 +86,7 @@ export async function listGroqModels(): Promise<GroqModelInfo[]> {
 	});
 
 	if (!response.ok) {
-		return [{ id: GROQ_MODEL, family: normalizeFamily(GROQ_MODEL), contextWindow: 0 }];
+		return GROQ_RESEARCH_MODELS;
 	}
 
 	const payload = (await response.json()) as {
@@ -60,7 +101,7 @@ export async function listGroqModels(): Promise<GroqModelInfo[]> {
 	});
 
 	if (rawModels.length === 0) {
-		return [{ id: GROQ_MODEL, family: normalizeFamily(GROQ_MODEL), contextWindow: 0 }];
+		return GROQ_RESEARCH_MODELS;
 	}
 
 	const families = new Map<string, Array<{ id: string; context_window?: number }>>();
@@ -71,16 +112,28 @@ export async function listGroqModels(): Promise<GroqModelInfo[]> {
 		families.set(family, existing);
 	}
 
-	return Array.from(families.entries())
+	const discovered = Array.from(families.entries())
 		.map(([family, familyModels]) => {
 			const selected = chooseRepresentative(familyModels);
 			return {
 				id: selected.id,
 				family,
-				contextWindow: selected.context_window ?? 0
+				contextWindow: selected.context_window ?? 0,
+				provider: 'Groq' as const
 			};
 		})
 		.sort((a, b) => b.contextWindow - a.contextWindow || a.family.localeCompare(b.family));
+
+	const byId = new Map<string, GroqModelInfo>(discovered.map((model) => [model.id, model]));
+	for (const model of GROQ_RESEARCH_MODELS) {
+		byId.set(model.id, {
+			...model,
+			contextWindow: byId.get(model.id)?.contextWindow || model.contextWindow
+		});
+	}
+	return Array.from(byId.values()).sort(
+		(a, b) => b.contextWindow - a.contextWindow || a.family.localeCompare(b.family)
+	);
 }
 
 function safeJsonParse<T>(value: string): T | null {
@@ -99,7 +152,7 @@ function safeJsonParse<T>(value: string): T | null {
 	}
 }
 
-export async function groqJson<T>(
+async function groqCompatibleJson<T>(
 	messages: GroqMessage[],
 	temperature = 0.2,
 	model = GROQ_MODEL,
@@ -107,43 +160,95 @@ export async function groqJson<T>(
 ): Promise<T> {
 	const apiKey = env.GROQ_API_KEY;
 	if (!apiKey) {
-		throw new Error('GROQ_API_KEY is not configured.');
+		throw new Error('Groq API key is not configured.');
 	}
 
-	const response = await fetch(GROQ_API_URL, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: options.model ?? model,
-			temperature,
-			response_format: { type: 'json_object' },
-			...(options.maxCompletionTokens
-				? { max_completion_tokens: options.maxCompletionTokens }
-				: {}),
-			messages
-		})
-	});
+	let attempts = 0;
+	let baseDelay = 2000;
+	const maxAttempts = 4; // Limited to 3-5 retries
 
-	if (!response.ok) {
-		const message = await response.text();
-		throw new Error(`Groq request failed: ${response.status} ${message}`);
+	while (true) {
+		attempts++;
+		const response = await fetch(GROQ_API_URL, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				model: options.model ?? model,
+				temperature,
+				response_format: { type: 'json_object' },
+				...(options.maxCompletionTokens ? { max_tokens: options.maxCompletionTokens } : {}),
+				messages
+			})
+		});
+
+		if (!response.ok) {
+			const message = await response.text();
+
+			if (response.status === 429) {
+				if (attempts >= maxAttempts) {
+					throw new Error(
+						`Groq request failed after ${attempts} attempts: ${response.status} ${message}`
+					);
+				}
+
+				let retryDelay = baseDelay;
+				const retryAfter = response.headers.get('retry-after');
+
+				if (retryAfter) {
+					const parsed = parseFloat(retryAfter);
+					if (!isNaN(parsed)) retryDelay = parsed * 1000;
+				} else {
+					const match = message.match(/try again in ([\d.]+)s/);
+					if (match) {
+						retryDelay = parseFloat(match[1]) * 1000;
+					}
+				}
+
+				// Add a 1s buffer to ensure we clear the limit window
+				retryDelay += 1000;
+				
+				if (retryDelay > 60000) {
+					throw new Error(
+						`Groq rate limit retry time (${Math.round(retryDelay / 1000)}s) exceeds maximum allowed wait (60s).`
+					);
+				}
+
+				console.warn(
+					`[Groq] Rate limited. Retrying in ${retryDelay}ms... (Attempt ${attempts}/${maxAttempts})`
+				);
+				await new Promise((resolve) => setTimeout(resolve, retryDelay));
+				baseDelay *= 1.5;
+				continue;
+			}
+
+			throw new Error(`Groq request failed: ${response.status} ${message}`);
+		}
+
+		const payload = (await response.json()) as {
+			choices?: Array<{ message?: { content?: string } }>;
+		};
+		const content = payload.choices?.[0]?.message?.content;
+		if (!content) {
+			throw new Error('Groq returned an empty response.');
+		}
+
+		const parsed = safeJsonParse<T>(content);
+		if (!parsed) {
+			throw new Error('Groq did not return valid JSON.');
+		}
+
+		return parsed;
 	}
+}
 
-	const payload = (await response.json()) as {
-		choices?: Array<{ message?: { content?: string } }>;
-	};
-	const content = payload.choices?.[0]?.message?.content;
-	if (!content) {
-		throw new Error('Groq returned an empty response.');
-	}
-
-	const parsed = safeJsonParse<T>(content);
-	if (!parsed) {
-		throw new Error('Groq did not return valid JSON.');
-	}
-
-	return parsed;
+export async function groqJson<T>(
+	messages: GroqMessage[],
+	temperature = 0.2,
+	model = GROQ_MODEL,
+	options: GroqJsonOptions = {}
+): Promise<T> {
+	return groqCompatibleJson(messages, temperature, model, options);
 }

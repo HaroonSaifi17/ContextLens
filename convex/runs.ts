@@ -41,6 +41,9 @@ export const createRun = mutation({
 		contextChars: v.number(),
 		contextChunks: v.number(),
 		contextCoverage: v.number(),
+		trustEfficiency: v.optional(v.float64()),
+		noiseSlope: v.optional(v.number()),
+		middleRecovery: v.optional(v.number()),
 		noiseInjected: v.boolean(),
 		latencyMs: v.number()
 	},

@@ -18,6 +18,9 @@ interface RunRecord {
 	contextChars?: number;
 	contextChunks?: number;
 	contextCoverage?: number;
+	trustEfficiency?: number;
+	noiseSlope?: number;
+	middleRecovery?: number;
 	noiseInjected?: boolean;
 	latencyMs: number;
 	createdAt: number;
@@ -61,6 +64,9 @@ export const GET: RequestHandler = async () => {
 				contextChars: run.contextChars ?? 0,
 				contextChunks: run.contextChunks ?? 0,
 				contextCoverage: run.contextCoverage ?? 0,
+				trustEfficiency: run.trustEfficiency,
+				noiseSlope: run.noiseSlope,
+				middleRecovery: run.middleRecovery,
 				noiseInjected: run.noiseInjected ?? false,
 				latencyMs: run.latencyMs,
 				createdAt: run.createdAt,

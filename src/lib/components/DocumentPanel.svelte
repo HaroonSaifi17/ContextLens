@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { Upload, FileText, Send, LoaderCircle, FlaskConical } from 'lucide-svelte';
+	import {
+		Upload,
+		FileText,
+		Send,
+		LoaderCircle,
+		FlaskConical,
+		WandSparkles,
+		Rows3
+	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Card } from '$lib/components/ui/card';
@@ -12,11 +20,14 @@
 		statusText = '',
 		isUploading = false,
 		isAnalyzing = false,
+		isGeneratingQueries = false,
 		noiseInjection = false,
 		onUpload,
 		onPasteText,
 		onToggleNoise,
 		onRunQuery,
+		onGenerateQueries,
+		onRunResearchBatch,
 		onRemoveDocument
 	} = $props<{
 		query: string;
@@ -24,11 +35,14 @@
 		statusText?: string;
 		isUploading?: boolean;
 		isAnalyzing?: boolean;
+		isGeneratingQueries?: boolean;
 		noiseInjection?: boolean;
 		onUpload?: (file: File) => void | Promise<void>;
 		onPasteText?: (text: string, title: string) => void | Promise<void>;
 		onToggleNoise?: () => void;
 		onRunQuery?: () => void;
+		onGenerateQueries?: () => void;
+		onRunResearchBatch?: () => void;
 		onRemoveDocument?: () => void;
 	}>();
 
@@ -109,7 +123,15 @@
 </script>
 
 <div class="h-full min-h-0 flex flex-col bg-background lg:border-r-4 border-border overflow-hidden">
-	<div class="p-3 sm:p-4 border-b-2 sm:border-b-4 border-border bg-card shrink-0 space-y-3">
+	<div
+		class={`p-3 sm:p-4 border-b-2 sm:border-b-4 border-border bg-card space-y-3 ${!session ? 'flex-1 min-h-0 overflow-y-auto' : 'shrink-0'}`}
+	>
+		{#if !session && statusText}<div
+				class="p-2 border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest"
+			>
+				{statusText}
+			</div>{/if}
+
 		{#if !session}
 			<div class="space-y-2">
 				<div class="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
@@ -228,14 +250,14 @@
 		</div>
 	</div>
 
-	<ScrollArea class="flex-1 min-h-0 p-3 sm:p-4">
-		<div class="h-full min-h-0 flex flex-col gap-3 text-muted-foreground leading-relaxed text-sm">
-			{#if statusText}<div
-					class="p-2 border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest"
-				>
-					{statusText}
-				</div>{/if}
-			{#if session}
+	{#if session}
+		<ScrollArea class="flex-1 min-h-0 p-3 sm:p-4">
+			<div class="h-full min-h-0 flex flex-col gap-3 text-muted-foreground leading-relaxed text-sm">
+				{#if statusText}<div
+						class="p-2 border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest"
+					>
+						{statusText}
+					</div>{/if}
 				<div class="flex-1 min-h-0 p-3 border-l-4 border-primary bg-muted/50">
 					<p
 						class="h-full overflow-y-auto text-foreground font-medium bg-primary/10 p-2 border border-primary/20 whitespace-pre-wrap break-words text-xs"
@@ -246,35 +268,55 @@
 				<p class="mt-auto pt-1 opacity-50 italic text-center font-bold text-xs">
 					Preview uses start+end snippet for readability.
 				</p>
-			{:else}
-				<div
-					class="flex-1 min-h-0 flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-widest"
-				>
-					Awaiting Document...
-				</div>
-			{/if}
-		</div>
-	</ScrollArea>
+			</div>
+		</ScrollArea>
+	{/if}
 
 	<div class="p-3 border-t-2 sm:border-t-4 border-border bg-card shrink-0">
-		<div class="flex gap-2 items-stretch">
-			<Input
-				type="text"
-				placeholder="ENTER QUERY..."
-				class="font-mono text-sm bg-background border-2 border-border focus-visible:ring-primary shadow-inner h-10 sm:h-11 font-bold placeholder:text-muted-foreground"
+		<div class="space-y-2">
+			<textarea
+				placeholder="ENTER QUERY OR ONE BATCH QUERY PER LINE..."
+				class="w-full font-mono text-sm bg-background border-2 border-border focus-visible:ring-primary shadow-inner h-16 sm:h-20 font-bold placeholder:text-muted-foreground p-3 resize-none"
 				bind:value={query}
-				disabled={!session || isAnalyzing}
-				onkeydown={(event) => event.key === 'Enter' && onRunQuery?.()}
-			/>
-			<Button
-				disabled={!session || !query || isAnalyzing}
-				onclick={onRunQuery}
-				class="font-black uppercase tracking-wider px-3 sm:px-4 h-10 sm:h-11 border-2 border-transparent transition-all disabled:shadow-none disabled:opacity-50"
-			>
-				{#if isAnalyzing}<LoaderCircle class="w-5 h-5 animate-spin" />{:else}<Send
-						class="w-5 h-5"
-					/>{/if}
-			</Button>
+				disabled={isAnalyzing}
+				onkeydown={(event) => {
+					if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') onRunQuery?.();
+				}}
+			></textarea>
+			<div class="grid grid-cols-1 2xl:grid-cols-3 gap-2">
+				<Button
+					variant="outline"
+					disabled={!session || isAnalyzing || isGeneratingQueries}
+					onclick={onGenerateQueries}
+					class="font-black uppercase tracking-wider px-2 min-h-10 sm:min-h-11 h-auto border-2 transition-all disabled:shadow-none disabled:opacity-50 text-[10px] sm:text-xs whitespace-normal leading-tight"
+				>
+					{#if isGeneratingQueries}<LoaderCircle class="w-4 h-4 animate-spin" />{:else}<WandSparkles
+							class="w-4 h-4"
+						/>{/if}
+					Generate
+				</Button>
+				<Button
+					variant="outline"
+					disabled={!session || !query || isAnalyzing}
+					onclick={onRunResearchBatch}
+					class="font-black uppercase tracking-wider px-2 min-h-10 sm:min-h-11 h-auto border-2 transition-all disabled:shadow-none disabled:opacity-50 text-[10px] sm:text-xs whitespace-normal leading-tight"
+				>
+					{#if isAnalyzing}<LoaderCircle class="w-4 h-4 animate-spin" />{:else}<Rows3
+							class="w-4 h-4"
+						/>{/if}
+					Batch
+				</Button>
+				<Button
+					disabled={!session || !query || isAnalyzing}
+					onclick={onRunQuery}
+					class="font-black uppercase tracking-wider px-2 min-h-10 sm:min-h-11 h-auto border-2 border-transparent transition-all disabled:shadow-none disabled:opacity-50 text-[10px] sm:text-xs whitespace-normal leading-tight"
+				>
+					{#if isAnalyzing}<LoaderCircle class="w-4 h-4 animate-spin" />{:else}<Send
+							class="w-4 h-4"
+						/>{/if}
+					Single
+				</Button>
+			</div>
 		</div>
 	</div>
 </div>

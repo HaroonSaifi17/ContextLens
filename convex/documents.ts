@@ -69,7 +69,8 @@ export const createSession = mutation({
 			throw new Error('Document has no extractable text.');
 		}
 
-		const previewText = fullText.slice(0, 4000);
+		const middleStart = Math.floor(fullText.length * 0.4);
+		const previewText = fullText.slice(middleStart, middleStart + 4000);
 		const createdAt = Date.now();
 		const title = makeTitle(args.filename, fullText);
 		const sessionId = await ctx.db.insert('sessions', {

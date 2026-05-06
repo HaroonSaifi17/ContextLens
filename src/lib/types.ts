@@ -38,6 +38,9 @@ export interface PipelineRun {
 	contextChars: number;
 	contextChunks: number;
 	contextCoverage: number;
+	trustEfficiency?: number;
+	noiseSlope?: number;
+	middleRecovery?: number;
 	noiseInjected: boolean;
 	latencyMs: number;
 	sessionId?: string;
@@ -67,6 +70,9 @@ export interface AnalysisStreamEvent {
 	run?: PipelineRun;
 	progress?: number;
 	model?: string;
+	pipeline?: PipelineType;
+	query?: string;
+	status?: 'started' | 'succeeded' | 'failed' | 'rate_limited';
 	stats?: {
 		hallucinationDelta: number;
 		confidenceDelta: number;

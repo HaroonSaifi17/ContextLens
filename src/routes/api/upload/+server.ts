@@ -45,7 +45,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const title = makeTitle(file.name, text);
-		const previewText = text.slice(0, 4000);
+		const middleStart = Math.floor(text.length * 0.4);
+		const previewText = text.slice(middleStart, middleStart + 4000);
 
 		return json({
 			document: {

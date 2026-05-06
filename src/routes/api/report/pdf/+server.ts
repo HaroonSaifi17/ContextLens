@@ -57,11 +57,8 @@ export const GET: RequestHandler = async () => {
 			{ label: 'Unique Queries', value: String(report.totalQueries) },
 			{ label: 'Sessions', value: String(report.totalSessions) },
 			{
-				label: 'Avg Confidence',
-				value:
-					report.summary.length > 0
-						? `${Math.round(report.summary.reduce((sum, item) => sum + item.avgConfidence, 0) / report.summary.length)}%`
-						: '0%'
+				label: 'Paired Uplift',
+				value: `${report.researchMetrics.pairedMeanUpliftPp} pp`
 			}
 		];
 
@@ -140,7 +137,36 @@ export const GET: RequestHandler = async () => {
 			y -= 16;
 		}
 
-		y -= 6;
+		y -= 10;
+		page.drawText('Protocol Tables for Paper', {
+			x: PAGE_MARGIN,
+			y,
+			size: 13,
+			font: fontBold,
+			color: BODY
+		});
+		y -= 18;
+
+		const protocolRows = [
+			['PairedComparisonCount', String(report.paperVariables.PairedComparisonCount)],
+			['PairedMeanDelta', `${report.paperVariables.PairedMeanDelta} pp`],
+			['PairedMedianDelta', `${report.paperVariables.PairedMedianDelta} pp`],
+			['RAGMiddleRecovery', `${report.paperVariables.RAGMiddleRecovery}%`],
+			['RAGNoiseSlopeReduction', `${report.paperVariables.RAGNoiseSlopeReduction}%`],
+			['RAGTrustEfficiencyGain', `${report.paperVariables.RAGTrustEfficiencyGain}%`],
+			[
+				'Trust-efficiency Full/RAG',
+				`${report.researchMetrics.trustEfficiencyFullContext} / ${report.researchMetrics.trustEfficiencyRag}`
+			]
+		];
+
+		for (const [label, value] of protocolRows) {
+			page.drawText(label, { x: PAGE_MARGIN, y, size: 9, font: fontBold, color: MUTED });
+			page.drawText(value, { x: PAGE_MARGIN + 230, y, size: 9, font, color: BODY });
+			y -= 13;
+		}
+
+		y -= 8;
 		page.drawText('Recent Runs', {
 			x: PAGE_MARGIN,
 			y,

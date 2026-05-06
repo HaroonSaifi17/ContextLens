@@ -29,7 +29,10 @@ Each run is stored in Convex and shown with sentence-level grounding, context us
 - Positional bias heatmap (lost-in-the-middle signal)
 - Noise injection lab (controlled robustness test)
 - Session history with one-click restore
-- Exportable reliability reports (PDF + JSON)
+- Exportable reliability reports (PDF, JSON, LaTeX)
+- Automatic batch research query generation and benchmarking
+- Trust-efficiency metrics and middle-position recovery analytics
+- OpenAI-compatible endpoint support
 
 ## Environment variables
 
@@ -85,6 +88,7 @@ bun run build
 ## Notes
 
 - Context is automatically resized per model to reduce token-limit failures.
+- Built-in rate limit handling with automatic retries, exponential backoff, and a max-wait cap to safely navigate Groq free tier limits.
 - Model families are deduplicated to avoid showing multiple variants of the same base family.
 - For production, rotate API keys and avoid committing secrets.
 

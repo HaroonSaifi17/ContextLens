@@ -64,6 +64,9 @@ export default defineSchema({
 		contextChars: v.optional(v.number()),
 		contextChunks: v.optional(v.number()),
 		contextCoverage: v.optional(v.number()),
+		trustEfficiency: v.optional(v.float64()),
+		noiseSlope: v.optional(v.number()),
+		middleRecovery: v.optional(v.number()),
 		noiseInjected: v.optional(v.boolean()),
 		latencyMs: v.number(),
 		createdAt: v.number()

@@ -1,4 +1,6 @@
-import { groqJson, listGroqModels } from '$lib/server/groq';
+import { groqJson, listGroqModels, type GroqModelInfo } from '$lib/server/groq';
+import { COPILOT_REFERENCE_MODEL, hasOpenAiCompatibleKey, openAiJson } from '$lib/server/openai';
+import { runTrustEfficiency } from '$lib/metrics';
 import type {
 	Citation,
 	GroundedSentence,
@@ -22,6 +24,10 @@ interface LlmOutput {
 	citations?: Array<{ chunkOrder: number; text: string }>;
 }
 
+interface QueryGenOutput {
+	queries?: Array<{ query: string; targetPosition?: 'beginning' | 'middle' | 'end' | 'global' }>;
+}
+
 export interface PreparedContext {
 	text: string;
 	chunks: ChunkRecord[];
@@ -38,6 +44,7 @@ interface RunPipelineArgs {
 	context: PreparedContext;
 	modelId: string;
 	modelFamily: string;
+	provider?: GroqModelInfo['provider'];
 	modelContextWindow?: number;
 	noiseInjected: boolean;
 }
@@ -303,9 +310,87 @@ export function injectNoise(context: PreparedContext, enabled: boolean): Prepare
 	};
 }
 
+function sliceDocumentBand(text: string, startRatio: number, endRatio: number) {
+	const start = Math.floor(text.length * startRatio);
+	const end = Math.floor(text.length * endRatio);
+	return text.slice(start, end).replace(/\s+/g, ' ').trim().slice(0, 2500);
+}
+
+function fallbackResearchQueries(fullText: string) {
+	const beginning = sliceDocumentBand(fullText, 0, 0.18);
+	const middle = sliceDocumentBand(fullText, 0.42, 0.58);
+	const end = sliceDocumentBand(fullText, 0.82, 1);
+	const probes = [
+		['beginning', beginning],
+		['middle', middle],
+		['end', end]
+	] as const;
+
+	return probes
+		.flatMap(([position, excerpt]) => {
+			const sentence = excerpt.split(/(?<=[.!?])\s+/).find((item) => item.length > 80) ?? excerpt;
+			return [
+				`What specific claim or event is described in the ${position} section around: "${sentence.slice(0, 140)}"?`,
+				`Which evidence from the ${position} section best supports its central point?`
+			];
+		})
+		.slice(0, 6);
+}
+
+export async function generateResearchQueries(fullText: string, count = 8) {
+	const boundedCount = clamp(Math.round(count), 5, 10);
+	const promptContext = [
+		`[BEGINNING]\n${sliceDocumentBand(fullText, 0, 0.18)}`,
+		`[MIDDLE]\n${sliceDocumentBand(fullText, 0.42, 0.58)}`,
+		`[END]\n${sliceDocumentBand(fullText, 0.82, 1)}`
+	].join('\n\n');
+
+	try {
+		const output = await groqJson<QueryGenOutput>(
+			[
+				{
+					role: 'system',
+					content:
+						'Return JSON only: { "queries": [{ "query": string, "targetPosition": "beginning"|"middle"|"end"|"global" }] }. Generate high-quality benchmark questions that require document-specific evidence and cover beginning, middle, and end positions.'
+				},
+				{
+					role: 'user',
+					content: `Generate ${boundedCount} research benchmark queries for this document sample:\n\n${promptContext}`
+				}
+			],
+			0.3,
+			'openai/gpt-oss-120b',
+			{ maxCompletionTokens: 700 }
+		);
+		const queries = (output.queries ?? [])
+			.map((item) => item.query?.trim())
+			.filter(Boolean)
+			.slice(0, boundedCount);
+		return queries.length >= 5 ? queries : fallbackResearchQueries(fullText).slice(0, boundedCount);
+	} catch {
+		return fallbackResearchQueries(fullText).slice(0, boundedCount);
+	}
+}
+
 export async function listExperimentModels() {
 	const models = await listGroqModels();
-	return models;
+	return [
+		...models,
+		...(hasOpenAiCompatibleKey()
+			? [
+					{
+						id: COPILOT_REFERENCE_MODEL,
+						family: 'copilot-free-gpt-4o-mini',
+						contextWindow: 128000,
+						provider: 'OpenAI-Compatible' as const
+					}
+				]
+			: [])
+	];
+}
+
+function selectJsonProvider(provider?: GroqModelInfo['provider']) {
+	return provider === 'OpenAI-Compatible' ? openAiJson : groqJson;
 }
 
 export async function runPipeline(args: RunPipelineArgs): Promise<PipelineRun> {
@@ -319,7 +404,8 @@ export async function runPipeline(args: RunPipelineArgs): Promise<PipelineRun> {
 		Math.min(900, Math.floor((args.modelContextWindow ?? 4000) * 0.18))
 	);
 
-	const output = await groqJson<LlmOutput>(
+	const providerJson = selectJsonProvider(args.provider);
+	const output = await providerJson<LlmOutput>(
 		[
 			{
 				role: 'system',
@@ -348,11 +434,11 @@ export async function runPipeline(args: RunPipelineArgs): Promise<PipelineRun> {
 			? normalizeCitations(output.citations)
 			: args.context.citations;
 
-	return {
+	const baseRun = {
 		pipeline: args.pipeline,
 		modelFamily: args.modelFamily,
 		modelName: args.modelId,
-		provider: 'Groq',
+		provider: args.provider ?? 'Groq',
 		answer,
 		confidence: clampConfidence(output.confidence),
 		hallucinationCount: hallucinations.length,
@@ -365,5 +451,10 @@ export async function runPipeline(args: RunPipelineArgs): Promise<PipelineRun> {
 		contextCoverage: sizedContext.coverage,
 		noiseInjected: args.noiseInjected,
 		latencyMs: Date.now() - startedAt
+	};
+
+	return {
+		...baseRun,
+		trustEfficiency: Number(runTrustEfficiency(baseRun).toFixed(4))
 	};
 }
